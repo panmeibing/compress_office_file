@@ -2,6 +2,8 @@
 .log
 logs/
 tmp/
+.DS_Store
+.vs
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
