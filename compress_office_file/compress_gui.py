@@ -43,11 +43,13 @@ class CompressOfficeFile:
         self.params_frame = ttkb.Frame(self.main_frame)
         self.logs_frame = ttkb.Frame(self.main_frame)
         self.target_save_dir_var = ttkb.StringVar()
-        self.todo_files = ttkb.StringVar()
+        self.quality_var = ttkb.IntVar(value=90)
+        self.max_resolution_var = ttkb.StringVar(value="1920")
         self.text_entry = None
         self.compress_button = None
         self.tip_label = None
         self.tip_label_var = ttkb.StringVar(value="")
+        self.compress_quality_lb = None
         self.create_view()
         self.center_window()
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -79,6 +81,26 @@ class CompressOfficeFile:
         ttkb.Button(save_dir_frame, text='浏览', command=lambda: self.target_save_dir_var.set(askdirectory())).pack(
             side="right", padx=(10, 0), fill="x", pady=entry_pady)
         save_dir_frame.pack(side="top", fill="x", expand=1)
+        # 最大分辨率参数
+        resolution_frame = ttkb.Frame(self.params_frame)
+        resolution_lb = ttkb.Label(self.params_frame, text="最大分辨率")
+        resolution_lb.pack(anchor="w")
+        ToolTip(resolution_lb, text="设置图片最大分辨率，若原图太大则等比缩放")
+        ttkb.Entry(resolution_frame, textvariable=self.max_resolution_var).pack(
+            side="left", fill="x", pady=entry_pady, expand=1)
+        resolution_frame.pack(side="top", fill="x", expand=1)
+        # 压缩质量参数
+        compress_quality_frame = ttkb.Frame(self.params_frame)
+        compress_quality_label = ttkb.Label(self.params_frame, text="压缩质量")
+        compress_quality_label.pack(anchor="w")
+        ToolTip(compress_quality_label, text="压缩质量值越小，体积越小，画质越差，建议90")
+        self.compress_quality_lb = ttkb.Label(compress_quality_frame, text=str(self.quality_var.get()))
+        self.compress_quality_lb.pack(side="left", padx=(5, 10), pady=entry_pady)
+        ttkb.Scale(
+            compress_quality_frame, from_=1, to=95, value=int(self.quality_var.get()),
+            command=self.on_change_quality
+        ).pack(side="left", fill="x", expand=1, pady=entry_pady)
+        compress_quality_frame.pack(side="top", fill="x", expand=1)
         # 提示信息
         self.tip_label = ttkb.Label(self.params_frame, textvariable=self.tip_label_var, bootstyle="secondary")
         self.tip_label.pack(side="top", fill="x", expand=1)
@@ -110,13 +132,19 @@ class CompressOfficeFile:
         #     self.root.destroy()
 
     def on_select_files(self):
-        selected_res = askopenfilenames(filetypes=[(k, v) for k, v in FILE_TYPE_MAP.items()])
+        # selected_res = askopenfilenames(filetypes=[(k, v) for k, v in FILE_TYPE_MAP.items()])
+        selected_res = askopenfilenames(filetypes=[("Office files", " ".join(FILE_TYPE_MAP.values()))])
         self.text_entry.delete("1.0", ttkb.END)
         self.text_entry.edit_reset()
         print("selected_res: ", selected_res)
         height_line = len(selected_res) if selected_res else 1
         self.text_entry.config(height=height_line)
         self.text_entry.insert("1.0", "\n".join(selected_res))
+
+    def on_change_quality(self, value):
+        new_value = int(float(value))
+        self.quality_var.set(new_value)
+        self.compress_quality_lb.config(text=str(new_value))
 
     def on_compress_job(self):
         t = Thread(target=self.start_compress_job)
@@ -201,11 +229,19 @@ class CompressOfficeFile:
         target_save_dir = self.target_save_dir_var.get()
         if not target_save_dir or not os.path.exists(target_save_dir) or not os.path.isdir(target_save_dir):
             return False, "请选择一个合法的保存文件夹"
+        quality = self.quality_var.get()
+        if not isinstance(quality, int):
+            return False, "压缩质量应该为整数"
+        max_resolution = self.max_resolution_var.get()
+        if not max_resolution.isdigit():
+            return False, "最大分辨率应该为整数"
         return True, file_path_list
 
     def compress_img_multi_threads(self, img_path):
         if not os.path.exists(img_path):
             return
+        max_resolution = int(self.max_resolution_var.get())
+        quality = int(self.quality_var.get())
         pool = ThreadPool(MAX_THREAD_COUNT)
         for file_name in os.listdir(img_path):
             file_type = os.path.splitext(file_name)[1]  # .png
@@ -213,7 +249,7 @@ class CompressOfficeFile:
             if ext_type not in COMPRESS_IMG_TYPE:
                 continue
             img_full_path = os.path.join(img_path, file_name)
-            pool.apply_async(compress_local_image, args=(img_full_path,))
+            pool.apply_async(compress_local_image, args=(img_full_path, max_resolution, quality))
         pool.close()
         pool.join()
 
