@@ -38,7 +38,8 @@ class CompressOfficeFile:
 
     def __init__(self, master=None):
         self.root = master if master else ttkb.Window(title="Office文档压缩", resizable=(False, False))
-        # self.root.iconbitmap('')
+        self.ico_path = os.path.join(ROOT_PATH, "static/ico/logo.ico")
+        self.root.iconbitmap(self.ico_path)
         self.tmp_dir = os.path.join(ROOT_PATH, "tmp")
         self.container_frame = ttkb.Frame(self.root, padding=(100, 10, 100, 30))
         self.main_frame = ttkb.Frame(self.container_frame)
@@ -127,15 +128,16 @@ class CompressOfficeFile:
         self.author_info_lb.bind("<Leave>", self.on_leave_author_info_lb)
         self.author_info_lb.pack(pady=10)
 
-    def center_window(self):
+    def center_window(self, window=None):
+        window = window if window else self.root
         logger.info("center_window()")
         try:
-            self.root.update()
-            width, height = self.root.winfo_width(), self.root.winfo_height()
-            center_width, = (self.root.winfo_screenwidth() - width) // 2,
-            center_height = (self.root.winfo_screenheight() - height) // 2
+            window.update()
+            width, height = window.winfo_width(), window.winfo_height()
+            center_width, = (window.winfo_screenwidth() - width) // 2,
+            center_height = (window.winfo_screenheight() - height) // 2
             geometry_str = "+{}+{}".format(center_width, center_height)
-            self.root.geometry(geometry_str)
+            window.geometry(geometry_str)
         except Exception as e:
             print(f"center_window() error: {e}")
 
@@ -166,13 +168,15 @@ class CompressOfficeFile:
 
     def on_click_author_info_lb(self, event):
         author_tl = ttkb.Toplevel(self.root)
+        author_tl.iconbitmap(self.ico_path)
         author_tl.title = "使用说明"
         author_tl.transient(self.root)
+        self.center_window(author_tl)
         container_frame = ttkb.Frame(author_tl)
-        ttkb.Label(container_frame, text="使用说明", font=(None, 20, "bold")).pack(pady=(10, 10))
-        statement_text = "本软件的压缩原理是对Office文档内的图片进行压缩达到减小文件体积的效果。\n\n本软件完全免费，请勿用于任何商业用途"
+        ttkb.Label(container_frame, text="使用说明", font=(None, 20, "bold")).pack(pady=(10, 50))
+        statement_text = "本软件的压缩原理是对Office文档内的图片进行压缩达到减小文件体积的目的\n\n本软件完全免费，请勿用于任何商业用途"
         ttkb.Label(container_frame, text=statement_text).pack(fill="x", anchor="center")
-        ttkb.Label(container_frame, text=f"版本：{VERSION}", font=(None, 15, "bold")).pack(pady=(50, 10))
+        ttkb.Label(container_frame, text=f"版本：{VERSION}", font=(None, 12, "bold")).pack(pady=(50, 10))
         container_frame.pack(padx=50, pady=50)
 
     def on_enter_author_info_lb(self, event):
