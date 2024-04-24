@@ -13,6 +13,8 @@ from utils.image_utils import compress_local_image
 from utils.logger_utils import get_logger
 from utils.zip_utils import unzip_file, zip_file
 
+VERSION = "v1.1"
+
 FILE_TYPE_MAP = {
     "Word": ".docx",
     "Excel": ".xlsx",
@@ -43,13 +45,16 @@ class CompressOfficeFile:
         self.params_frame = ttkb.Frame(self.main_frame)
         self.logs_frame = ttkb.Frame(self.main_frame)
         self.target_save_dir_var = ttkb.StringVar()
-        self.quality_var = ttkb.IntVar(value=90)
+        self.quality_var = ttkb.IntVar(value=80)
         self.max_resolution_var = ttkb.StringVar(value="1920")
         self.text_entry = None
         self.compress_button = None
         self.tip_label = None
         self.tip_label_var = ttkb.StringVar(value="")
         self.compress_quality_lb = None
+        self.author_info_lb = None
+        self.progressbar = None
+        self.progress_var = ttkb.DoubleVar()
         self.create_view()
         self.center_window()
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -93,14 +98,17 @@ class CompressOfficeFile:
         compress_quality_frame = ttkb.Frame(self.params_frame)
         compress_quality_label = ttkb.Label(self.params_frame, text="压缩质量")
         compress_quality_label.pack(anchor="w")
-        ToolTip(compress_quality_label, text="压缩质量值越小，体积越小，画质越差，建议90")
+        ToolTip(compress_quality_label, text="压缩质量值越小，体积越小，画质越差，建议不低于60")
         self.compress_quality_lb = ttkb.Label(compress_quality_frame, text=str(self.quality_var.get()))
         self.compress_quality_lb.pack(side="left", padx=(5, 10), pady=entry_pady)
         ttkb.Scale(
-            compress_quality_frame, from_=1, to=95, value=int(self.quality_var.get()),
+            compress_quality_frame, from_=20, to=95, value=int(self.quality_var.get()),
             command=self.on_change_quality
         ).pack(side="left", fill="x", expand=1, pady=entry_pady)
         compress_quality_frame.pack(side="top", fill="x", expand=1)
+        # 进度条
+        self.progressbar = ttkb.Progressbar(self.params_frame, variable=self.progress_var)
+        self.progressbar.pack(side="top", fill="x", expand=1)
         # 提示信息
         self.tip_label = ttkb.Label(self.params_frame, textvariable=self.tip_label_var, bootstyle="secondary")
         self.tip_label.pack(side="top", fill="x", expand=1)
@@ -108,10 +116,16 @@ class CompressOfficeFile:
         self.params_frame.grid(row=0, column=0, padx=20)
         self.main_frame.pack(pady=10)
         # 压缩按钮
-        self.compress_button = ttkb.Button(self.container_frame, text=COMPRESS_BTN_TEXT, command=self.on_compress_job)
+        self.compress_button = ttkb.Button(
+            self.container_frame, text=COMPRESS_BTN_TEXT, command=self.on_compress_job, padding=(20, 10))
         self.compress_button.pack(pady=20)
         self.container_frame.pack()
-        ttkb.Label(self.root, text="made by 冰冷的希望", font=(None, 10), bootstyle="secondary").pack(pady=10)
+        # 作者信息
+        self.author_info_lb = ttkb.Label(self.root, text="made by 冰冷的希望", font=(None, 10), bootstyle="secondary")
+        self.author_info_lb.bind("<Button-1>", self.on_click_author_info_lb)
+        self.author_info_lb.bind("<Enter>", self.on_enter_author_info_lb)
+        self.author_info_lb.bind("<Leave>", self.on_leave_author_info_lb)
+        self.author_info_lb.pack(pady=10)
 
     def center_window(self):
         logger.info("center_window()")
@@ -150,6 +164,23 @@ class CompressOfficeFile:
         t = Thread(target=self.start_compress_job)
         t.start()
 
+    def on_click_author_info_lb(self, event):
+        author_tl = ttkb.Toplevel(self.root)
+        author_tl.title = "使用说明"
+        author_tl.transient(self.root)
+        container_frame = ttkb.Frame(author_tl)
+        ttkb.Label(container_frame, text="使用说明", font=(None, 20, "bold")).pack(pady=(10, 10))
+        statement_text = "本软件的压缩原理是对Office文档内的图片进行压缩达到减小文件体积的效果。\n\n本软件完全免费，请勿用于任何商业用途"
+        ttkb.Label(container_frame, text=statement_text).pack(fill="x", anchor="center")
+        ttkb.Label(container_frame, text=f"版本：{VERSION}", font=(None, 15, "bold")).pack(pady=(50, 10))
+        container_frame.pack(padx=50, pady=50)
+
+    def on_enter_author_info_lb(self, event):
+        self.author_info_lb.config(bootstyle="primary")
+
+    def on_leave_author_info_lb(self, event):
+        self.author_info_lb.config(bootstyle="secondary")
+
     def start_compress_job(self):
         print("start_compress_job()")
         is_ok, path_data = self.check_params()
@@ -168,10 +199,13 @@ class CompressOfficeFile:
             print(f"start_compress_job(): {do_compress_tip}")
             start_time = time.time()
             try:
-                self.compress(file_path)
-                success_count += 1
+                is_success = self.compress(file_path)
+                if is_success:
+                    success_count += 1
             except Exception as compress_error:
                 logger.error(f"start_compress_job() compress error: {compress_error}")
+            progress_value = round((file_index + 1) / total_file_count * 100, 2)
+            self.progress_var.set(progress_value)
             print(f"start_compress_job() file_path {file_index} spent time: {time.time() - start_time}")
         self.tip_label_var.set(f"已压缩，共 {total_file_count} 个，成功 {success_count} 个")
         self.compress_button.config(text=COMPRESS_BTN_TEXT)
@@ -179,6 +213,7 @@ class CompressOfficeFile:
 
     def compress(self, file_path):
         logger.info(f"compress() start, file_path: {file_path}")
+        is_success = False
         file_name = os.path.split(file_path)[1]
         tmp_unzip_dir = os.path.join(self.tmp_dir, f"{file_name}_{int(time.time())}")
         logger.info(f"compress() tmp_unzip_dir: {tmp_unzip_dir}")
@@ -188,7 +223,7 @@ class CompressOfficeFile:
             unzip_file(file_path, tmp_unzip_dir)
         except Exception as e:
             logger.error(f"compress() unzip file error: {e}")
-            return
+            return is_success
         file_type = os.path.splitext(file_path)[1]
         if file_type == ".pptx":
             self.compress_img_multi_threads(os.path.join(tmp_unzip_dir, "ppt", "media"))
@@ -197,12 +232,14 @@ class CompressOfficeFile:
         elif file_type == ".xlsx":
             self.compress_img_multi_threads(os.path.join(tmp_unzip_dir, "xl", "media"))
         else:
+            # 不会执行，在校验参数的时候已经排除
             logger.warning(f"compress() unsupported file_type: {file_type}")
         target_save_dir = self.target_save_dir_var.get()
         target_zipped_file = os.path.join(target_save_dir, f"{file_name.split('.')[0]}_compressed{file_type}")
         logger.info(f"compress() target_zipped_file: {target_zipped_file}")
         try:
             zip_file(tmp_unzip_dir, target_zipped_file)
+            is_success = True
         except Exception as e:
             logger.error(f"compress() zip file error: {e}")
         try:
@@ -211,6 +248,7 @@ class CompressOfficeFile:
         except Exception as e:
             logger.error(f"compress() remove tmp dirs failed: {e}")
         logger.info(f"compress() finished, file_path: {file_path}")
+        return is_success
 
     def check_params(self):
         files_str = self.text_entry.get("1.0", ttkb.END).strip()
