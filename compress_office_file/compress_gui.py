@@ -54,6 +54,8 @@ class CompressOfficeFile:
         self.tip_label_var = ttkb.StringVar(value="")
         self.compress_quality_lb = None
         self.author_info_lb = None
+        self.hidden_lb = None
+        self.hidden_text_var = ttkb.StringVar(value=" " * 30)
         self.progressbar = None
         self.progress_var = ttkb.DoubleVar()
         self.create_view()
@@ -126,7 +128,10 @@ class CompressOfficeFile:
         self.author_info_lb.bind("<Button-1>", self.on_click_author_info_lb)
         self.author_info_lb.bind("<Enter>", self.on_enter_author_info_lb)
         self.author_info_lb.bind("<Leave>", self.on_leave_author_info_lb)
-        self.author_info_lb.pack(pady=10)
+        self.author_info_lb.pack()
+        self.hidden_lb = ttkb.Label(self.root, textvariable=self.hidden_text_var)
+        self.hidden_lb.pack(pady=(1, 5))
+        self.hidden_lb.bind("<Double-Button-1>", self.on_double_click_hidden_lb)
 
     def center_window(self, window=None):
         window = window if window else self.root
@@ -178,6 +183,12 @@ class CompressOfficeFile:
         ttkb.Label(container_frame, text=statement_text).pack(fill="x", anchor="center")
         ttkb.Label(container_frame, text=f"版本：{VERSION}", font=(None, 12, "bold")).pack(pady=(50, 10))
         container_frame.pack(padx=50, pady=50)
+
+    def on_double_click_hidden_lb(self, event):
+        hidden_text = "made for 印印"
+        now_hidden_text = self.hidden_text_var.get()
+        to_set_hidden_text = " " * 30 if now_hidden_text == hidden_text else hidden_text
+        self.hidden_text_var.set(to_set_hidden_text)
 
     def on_enter_author_info_lb(self, event):
         self.author_info_lb.config(bootstyle="primary")
