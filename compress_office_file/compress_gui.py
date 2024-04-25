@@ -56,6 +56,8 @@ class CompressOfficeFile:
         self.author_info_lb = None
         self.hidden_lb = None
         self.hidden_text_var = ttkb.StringVar(value=" " * 30)
+        p_image = ttkb.PhotoImage(file=os.path.join(ROOT_PATH, "static/image/strawberry.png"))
+        self.strawberry_img = p_image.subsample(15, 15)
         self.progressbar = None
         self.progress_var = ttkb.DoubleVar()
         self.create_view()
@@ -129,8 +131,8 @@ class CompressOfficeFile:
         self.author_info_lb.bind("<Enter>", self.on_enter_author_info_lb)
         self.author_info_lb.bind("<Leave>", self.on_leave_author_info_lb)
         self.author_info_lb.pack()
-        self.hidden_lb = ttkb.Label(self.root, textvariable=self.hidden_text_var)
-        self.hidden_lb.pack(pady=(1, 5))
+        self.hidden_lb = ttkb.Label(self.root, textvariable=self.hidden_text_var, font=(None, 10), compound='right')
+        self.hidden_lb.pack(pady=(1, 10))
         self.hidden_lb.bind("<Double-Button-1>", self.on_double_click_hidden_lb)
 
     def center_window(self, window=None):
@@ -179,16 +181,21 @@ class CompressOfficeFile:
         self.center_window(author_tl)
         container_frame = ttkb.Frame(author_tl)
         ttkb.Label(container_frame, text="使用说明", font=(None, 20, "bold")).pack(pady=(10, 50))
-        statement_text = "本软件的压缩原理是对Office文档内的图片进行压缩达到减小文件体积的目的\n\n本软件完全免费，请勿用于任何商业用途"
+        statement_text = "本软件是通过压缩文档内的图片达到减小文件体积的目的\n即此操作会降低图片画质\n\n本软件完全免费，请勿用于任何商业用途"
         ttkb.Label(container_frame, text=statement_text).pack(fill="x", anchor="center")
         ttkb.Label(container_frame, text=f"版本：{VERSION}", font=(None, 12, "bold")).pack(pady=(50, 10))
         container_frame.pack(padx=50, pady=50)
 
     def on_double_click_hidden_lb(self, event):
-        hidden_text = "made for 印印"
+        # hidden_text = " made for 印印公主🍓"
+        hidden_text = " made for 印印公主"
         now_hidden_text = self.hidden_text_var.get()
-        to_set_hidden_text = " " * 30 if now_hidden_text == hidden_text else hidden_text
-        self.hidden_text_var.set(to_set_hidden_text)
+        if now_hidden_text == hidden_text:
+            self.hidden_text_var.set(" " * 30)
+            self.hidden_lb.config(image='')
+        else:
+            self.hidden_text_var.set(hidden_text)
+            self.hidden_lb.config(image=self.strawberry_img)
 
     def on_enter_author_info_lb(self, event):
         self.author_info_lb.config(bootstyle="primary")
