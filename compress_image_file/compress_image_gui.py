@@ -32,7 +32,7 @@ class CompressGifFile:
 
     def __init__(self, master=None):
         self.root = master if master else ttkb.Window(title="GIF图片压缩", resizable=(False, False))
-        self.ico_path = os.path.join(ROOT_PATH)
+        self.ico_path = os.path.join(ROOT_PATH, "static/ico/logo.ico")
         self.root.iconbitmap(self.ico_path)
         self.container_frame = ttkb.Frame(self.root, padding=(100, 10, 100, 30))
         self.main_frame = ttkb.Frame(self.container_frame)
